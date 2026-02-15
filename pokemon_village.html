@@ -3,488 +3,412 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pokémon Village v2.0</title>
+    <title>Pokémon Village</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body { 
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            font-family: 'Courier New', monospace;
-            color: #fff;
+            font-family: monospace;
             overflow: hidden;
-            padding: 10px;
         }
 
-        #gameContainer {
-            background: #0f3460;
-            border: 4px solid #e94560;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
-            padding: 15px;
-            max-width: 800px;
-            width: 100%;
-        }
-
-        #gameTitle {
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ffcc00;
-            text-shadow: 2px 2px 4px #000;
-            margin-bottom: 10px;
-            letter-spacing: 2px;
+        #game {
+            background: #fff;
+            border: 4px solid #333;
+            position: relative;
         }
 
         canvas { 
             display: block;
-            border: 3px solid #533483;
-            background: #d4a574;
             image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
             width: 100%;
             max-width: 640px;
             height: auto;
-            margin: 0 auto 15px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
 
         #controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            background: #1a1a2e;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            gap: 8px;
+            background: rgba(0,0,0,0.8);
             padding: 15px;
-            border-radius: 8px;
-            max-width: 250px;
-            margin: 0 auto;
-        }
-
-        .control-row {
-            display: flex;
-            gap: 5px;
+            border-radius: 12px;
+            border: 3px solid #555;
         }
 
         .btn {
             width: 70px;
             height: 70px;
-            background: linear-gradient(145deg, #e94560, #c23456);
-            border: 3px solid #533483;
-            border-radius: 10px;
+            background: linear-gradient(145deg, #666, #444);
+            border: 3px solid #222;
+            border-radius: 8px;
             color: #fff;
-            font-size: 24px;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
+            font-size: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.1s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            font-weight: bold;
         }
 
         .btn:active {
+            background: linear-gradient(145deg, #444, #222);
             transform: scale(0.95);
-            box-shadow: 0 2px 3px rgba(0,0,0,0.4);
-            background: linear-gradient(145deg, #c23456, #a02848);
         }
 
         .btn.empty {
             background: transparent;
             border: none;
-            box-shadow: none;
-            cursor: default;
         }
 
-        .btn.interact {
-            background: linear-gradient(145deg, #ffcc00, #e6b800);
-            color: #000;
+        .btn.a {
+            background: linear-gradient(145deg, #f44, #c22);
+            font-size: 32px;
         }
 
-        .btn.interact:active {
-            background: linear-gradient(145deg, #e6b800, #cc9900);
+        .btn.a:active {
+            background: linear-gradient(145deg, #c22, #a11);
         }
 
-        #messageBox {
+        #msg {
             position: fixed;
-            bottom: 20px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             width: 90%;
-            max-width: 600px;
-            background: rgba(0, 0, 0, 0.95);
-            border: 4px solid #ffcc00;
-            border-radius: 12px;
-            padding: 20px;
-            color: #fff;
-            font-size: 16px;
-            text-align: center;
+            max-width: 500px;
+            background: rgba(255,255,255,0.95);
+            border: 4px solid #000;
+            padding: 15px;
             display: none;
-            z-index: 1000;
-            box-shadow: 0 0 20px rgba(255, 204, 0, 0.6);
-        }
-
-        #messageBox.active {
-            display: block;
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-        }
-
-        #stats {
+            font-size: 16px;
+            color: #000;
             text-align: center;
-            margin-top: 10px;
-            font-size: 14px;
-            color: #ffcc00;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
         }
 
-        @media (max-width: 600px) {
-            #gameTitle { font-size: 18px; }
-            .btn { width: 60px; height: 60px; font-size: 20px; }
-            #messageBox { font-size: 14px; }
+        #msg.show { display: block; }
+
+        @media (min-width: 700px) {
+            #controls { bottom: 30px; }
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="gameTitle">⚡ POKÉMON VILLAGE ⚡</div>
-        <canvas id="canvas"></canvas>
-        <div id="controls">
-            <div class="control-row">
-                <div class="btn empty"></div>
-                <div class="btn" data-dir="up">▲</div>
-                <div class="btn empty"></div>
-            </div>
-            <div class="control-row">
-                <div class="btn" data-dir="left">◄</div>
-                <div class="btn interact" data-action="interact">A</div>
-                <div class="btn" data-dir="right">►</div>
-            </div>
-            <div class="control-row">
-                <div class="btn empty"></div>
-                <div class="btn" data-dir="down">▼</div>
-                <div class="btn empty"></div>
-            </div>
-        </div>
-        <div id="stats">Items gefunden: <span id="itemCount">0</span>/3</div>
+    <div id="game">
+        <canvas id="c" width="640" height="480"></canvas>
     </div>
-    <div id="messageBox"></div>
+    <div id="controls">
+        <div class="btn empty"></div>
+        <div class="btn" data-d="u">▲</div>
+        <div class="btn empty"></div>
+        <div class="btn" data-d="l">◄</div>
+        <div class="btn a" data-a="1">A</div>
+        <div class="btn" data-d="r">►</div>
+        <div class="btn empty"></div>
+        <div class="btn" data-d="d">▼</div>
+        <div class="btn empty"></div>
+    </div>
+    <div id="msg"></div>
 
     <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const messageBox = document.getElementById('messageBox');
-        const itemCountEl = document.getElementById('itemCount');
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+        const msg = document.getElementById('msg');
 
-        const TILE = 16;
-        const SCALE = 2;
-        const SIZE = TILE * SCALE;
-        const COLS = 40;
-        const ROWS = 30;
-
-        canvas.width = COLS * SIZE;
-        canvas.height = ROWS * SIZE;
-
-        // Tile colors (Pokémon Gold/Silver inspired)
-        const COLORS = {
-            grass: '#9cb870',
-            path: '#d4a574',
-            water: '#5884c8',
-            tree: '#387038',
-            treeDark: '#285828',
-            roof: '#c84848',
-            wall: '#e0c890',
-            door: '#986048',
-            window: '#70a8d8',
-            fence: '#906030',
-            flower: '#e84890',
-            mart: '#4078c0',
-            sign: '#c09050'
-        };
+        const T = 16; // Tile size
+        const W = 40; // Map width
+        const H = 30; // Map height
 
         // Player
-        const player = { x: 20, y: 25, color: '#f83838', items: 0 };
+        const P = { x: 20, y: 25, dir: 0, moving: false };
 
-        // NPCs
-        const npcs = [
-            { x: 18, y: 10, color: '#4878d8', msg: '🧑 Trainer: Willkommen in Herbstdorf! Besuche das Pokémon Center im Norden!' },
-            { x: 25, y: 15, color: '#e89050', msg: '👨 Professor: Hast du schon die versteckten Items gefunden?' },
-            { x: 30, y: 20, color: '#f878a8', msg: '👧 Kind: Ich möchte Pokémon Trainer werden!' },
-            { x: 12, y: 18, color: '#90c058', msg: '🧓 Opa: Am Fluss gibt es oft seltene Pokémon!' }
-        ];
-
-        // Wild Pokémon (dekorativ)
-        const pokemon = [
-            { x: 8, y: 12, color: '#f8d030', name: '⚡' },
-            { x: 35, y: 8, color: '#78c850', name: '🍃' },
-            { x: 15, y: 24, color: '#6890f0', name: '💧' }
+        // NPCs with messages
+        const NPCS = [
+            { x: 18, y: 10, c: '#48f', msg: '👋 Willkommen in Herbstdorf!' },
+            { x: 25, y: 15, c: '#f84', msg: '🎓 Professor: Suche versteckte Items!' },
+            { x: 30, y: 20, c: '#f8f', msg: '🧒 Kind: Ich liebe Pokémon!' }
         ];
 
         // Items
-        const items = [
-            { x: 10, y: 5, found: false, msg: '✨ Du hast einen Superball gefunden!' },
-            { x: 38, y: 28, found: false, msg: '⭐ Du hast einen Sternenstück gefunden!' },
-            { x: 5, y: 20, found: false, msg: '💎 Du hast einen Nugget gefunden!' }
+        const ITEMS = [
+            { x: 10, y: 5, found: false, msg: '✨ Superball gefunden!' },
+            { x: 35, y: 28, found: false, msg: '⭐ Sternenstück gefunden!' },
+            { x: 5, y: 20, found: false, msg: '💎 Nugget gefunden!' }
         ];
 
-        // Map (0=grass, 1=path, 2=tree, 3=water, 4=roof, 5=wall, 6=door, 7=fence, 8=flower, 9=mart, 10=sign)
-        const map = Array(ROWS).fill(0).map(() => Array(COLS).fill(0));
+        // Map tiles: 0=grass, 1=path, 2=tree, 3=water, 4=roof-red, 5=wall, 6=door, 7=roof-blue, 8=flower
+        const M = [];
+        for(let y = 0; y < H; y++) {
+            M[y] = [];
+            for(let x = 0; x < W; x++) {
+                M[y][x] = 0; // Default grass
+            }
+        }
 
-        // Build map
-        function buildMap() {
-            // Fill with grass
-            for(let y = 0; y < ROWS; y++) {
-                for(let x = 0; x < COLS; x++) {
-                    map[y][x] = 0;
-                }
+        // Build world
+        function build() {
+            // Main roads
+            for(let y = 0; y < H; y++) {
+                for(let x = 18; x <= 21; x++) M[y][x] = 1;
+            }
+            for(let x = 0; x < W; x++) {
+                M[12][x] = 1;
+                M[20][x] = 1;
             }
 
-            // Paths
-            for(let y = 0; y < ROWS; y++) {
-                for(let x = 15; x < 25; x++) map[y][x] = 1; // Main road
-            }
-            for(let x = 0; x < COLS; x++) {
-                map[12][x] = 1; // Cross road
-                map[20][x] = 1;
-            }
-
-            // River (water)
-            for(let y = 0; y < ROWS; y++) {
-                map[y][32] = 3;
-                map[y][33] = 3;
+            // River
+            for(let y = 0; y < H; y++) {
+                M[y][32] = 3;
+                M[y][33] = 3;
             }
 
             // Trees border
-            for(let x = 0; x < COLS; x++) {
-                map[0][x] = 2;
-                map[ROWS-1][x] = 2;
+            for(let x = 0; x < W; x++) {
+                M[0][x] = 2;
+                M[H-1][x] = 2;
             }
-            for(let y = 0; y < ROWS; y++) {
-                map[y][0] = 2;
-                map[y][COLS-1] = 2;
+            for(let y = 0; y < H; y++) {
+                M[y][0] = 2;
+                M[y][W-1] = 2;
             }
 
-            // Pokémon Center (top)
-            for(let y = 2; y < 7; y++) {
-                for(let x = 17; x < 23; x++) {
-                    if(y === 2) map[y][x] = 4; // Roof
-                    else if(y === 6 && x === 20) map[y][x] = 6; // Door
-                    else if(y > 2) map[y][x] = 5; // Wall
+            // Pokémon Center (red roof)
+            for(let yy = 3; yy <= 7; yy++) {
+                for(let xx = 17; xx <= 22; xx++) {
+                    if(yy === 3) M[yy][xx] = 4; // Red roof
+                    else if(yy === 7 && xx === 20) M[yy][xx] = 6; // Door
+                    else M[yy][xx] = 5; // Wall
                 }
             }
 
-            // Poké Mart (right side)
-            for(let y = 8; y < 12; y++) {
-                for(let x = 26; x < 30; x++) {
-                    if(y === 8) map[y][x] = 9; // Mart roof
-                    else if(y === 11 && x === 28) map[y][x] = 6; // Door
-                    else if(y > 8) map[y][x] = 5;
+            // Poké Mart (blue roof)
+            for(let yy = 8; yy <= 11; yy++) {
+                for(let xx = 26; xx <= 29; xx++) {
+                    if(yy === 8) M[yy][xx] = 7; // Blue roof
+                    else if(yy === 11 && xx === 28) M[yy][xx] = 6;
+                    else M[yy][xx] = 5;
                 }
             }
 
             // Houses
-            buildHouse(5, 15, 3, 3);
-            buildHouse(10, 22, 4, 3);
-            buildHouse(25, 8, 3, 3);
+            house(5, 5, 3, 3);
+            house(10, 10, 4, 3);
+            house(15, 25, 3, 3);
+            house(24, 8, 3, 3);
 
-            // Decorations
-            map[10][10] = 8; // Flower
-            map[15][5] = 8;
-            map[22][35] = 8;
-            map[18][18] = 10; // Sign
+            // Flowers
+            M[10][10] = 8;
+            M[15][5] = 8;
+            M[22][35] = 8;
         }
 
-        function buildHouse(y, x, w, h) {
+        function house(y, x, w, h) {
             for(let dy = 0; dy < h; dy++) {
                 for(let dx = 0; dx < w; dx++) {
-                    if(dy === 0) map[y+dy][x+dx] = 4; // Roof
-                    else if(dy === h-1 && dx === Math.floor(w/2)) map[y+dy][x+dx] = 6; // Door
-                    else if(dy > 0) map[y+dy][x+dx] = 5; // Wall
+                    if(dy === 0) M[y+dy][x+dx] = 4;
+                    else if(dy === h-1 && dx === Math.floor(w/2)) M[y+dy][x+dx] = 6;
+                    else M[y+dy][x+dx] = 5;
                 }
             }
         }
 
-        buildMap();
+        build();
 
-        const solid = [2, 3, 4, 5, 9]; // Collision tiles
+        // Collision tiles
+        const SOLID = [2, 3, 4, 5, 7];
 
-        function drawTile(x, y, type) {
-            const px = x * SIZE;
-            const py = y * SIZE;
+        // Draw functions
+        function rect(x, y, w, h, col) {
+            ctx.fillStyle = col;
+            ctx.fillRect(x, y, w, h);
+        }
+
+        function tile(x, y, type) {
+            const px = x * T;
+            const py = y * T;
 
             switch(type) {
-                case 0: ctx.fillStyle = COLORS.grass; break;
-                case 1: ctx.fillStyle = COLORS.path; break;
-                case 2: 
-                    ctx.fillStyle = COLORS.tree;
-                    ctx.fillRect(px, py, SIZE, SIZE);
-                    ctx.fillStyle = COLORS.treeDark;
-                    ctx.fillRect(px+4, py+4, SIZE-8, SIZE-8);
-                    return;
-                case 3: ctx.fillStyle = COLORS.water; break;
-                case 4: ctx.fillStyle = COLORS.roof; break;
-                case 5: 
-                    ctx.fillStyle = COLORS.wall;
-                    ctx.fillRect(px, py, SIZE, SIZE);
-                    ctx.fillStyle = COLORS.window;
-                    ctx.fillRect(px+8, py+8, 16, 12);
-                    return;
-                case 6: ctx.fillStyle = COLORS.door; break;
-                case 7: ctx.fillStyle = COLORS.fence; break;
-                case 8: 
-                    ctx.fillStyle = COLORS.grass;
-                    ctx.fillRect(px, py, SIZE, SIZE);
-                    ctx.fillStyle = COLORS.flower;
-                    ctx.fillRect(px+10, py+10, 12, 12);
-                    return;
-                case 9: ctx.fillStyle = COLORS.mart; break;
-                case 10: ctx.fillStyle = COLORS.sign; break;
+                case 0: // Grass
+                    rect(px, py, T, T, '#98d098');
+                    rect(px+2, py+2, 4, 4, '#78b078');
+                    rect(px+10, py+6, 4, 4, '#78b078');
+                    break;
+                case 1: // Path
+                    rect(px, py, T, T, '#d8b870');
+                    break;
+                case 2: // Tree
+                    rect(px, py, T, T, '#387038');
+                    rect(px+2, py+2, T-4, T-4, '#285828');
+                    ctx.fillStyle = '#184018';
+                    ctx.fillRect(px+4, py+4, T-8, T-8);
+                    break;
+                case 3: // Water
+                    rect(px, py, T, T, '#5088d0');
+                    rect(px+3, py+3, 6, 6, '#70a8f0');
+                    break;
+                case 4: // Red roof
+                    rect(px, py, T, T, '#d83038');
+                    rect(px+2, py+2, T-4, T-4, '#a82028');
+                    break;
+                case 5: // Wall
+                    rect(px, py, T, T, '#e8d8a8');
+                    rect(px+4, py+4, 8, 6, '#90c8e8'); // Window
+                    break;
+                case 6: // Door
+                    rect(px, py, T, T, '#886030');
+                    rect(px+5, py+5, 6, 8, '#604020');
+                    break;
+                case 7: // Blue roof
+                    rect(px, py, T, T, '#4878c0');
+                    rect(px+2, py+2, T-4, T-4, '#3860a0');
+                    break;
+                case 8: // Flower
+                    rect(px, py, T, T, '#98d098');
+                    rect(px+6, py+6, 4, 4, '#f85090');
+                    break;
             }
-            ctx.fillRect(px, py, SIZE, SIZE);
         }
 
         function draw() {
-            // Draw map
-            for(let y = 0; y < ROWS; y++) {
-                for(let x = 0; x < COLS; x++) {
-                    drawTile(x, y, map[y][x]);
+            // Clear
+            ctx.fillStyle = '#98d098';
+            ctx.fillRect(0, 0, c.width, c.height);
+
+            // Map
+            for(let y = 0; y < H; y++) {
+                for(let x = 0; x < W; x++) {
+                    tile(x, y, M[y][x]);
                 }
             }
 
-            // Draw items
-            items.forEach(item => {
-                if(!item.found) {
-                    ctx.fillStyle = '#ffd700';
-                    ctx.fillRect(item.x * SIZE + 8, item.y * SIZE + 8, 16, 16);
+            // Items
+            ITEMS.forEach(it => {
+                if(!it.found) {
+                    rect(it.x * T + 5, it.y * T + 5, 6, 6, '#ff0');
                 }
             });
 
-            // Draw Pokémon
-            pokemon.forEach(p => {
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x * SIZE + 4, p.y * SIZE + 4, SIZE-8, SIZE-8);
-                ctx.fillStyle = '#000';
-                ctx.font = '16px Arial';
-                ctx.fillText(p.name, p.x * SIZE + 8, p.y * SIZE + 20);
+            // NPCs
+            NPCS.forEach(n => {
+                // Body
+                rect(n.x * T + 2, n.y * T + 2, 12, 12, n.c);
+                // Eyes
+                rect(n.x * T + 4, n.y * T + 5, 3, 3, '#fff');
+                rect(n.x * T + 9, n.y * T + 5, 3, 3, '#fff');
+                rect(n.x * T + 5, n.y * T + 6, 1, 1, '#000');
+                rect(n.x * T + 10, n.y * T + 6, 1, 1, '#000');
             });
 
-            // Draw NPCs
-            npcs.forEach(npc => {
-                ctx.fillStyle = npc.color;
-                ctx.fillRect(npc.x * SIZE + 4, npc.y * SIZE + 4, SIZE-8, SIZE-8);
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(npc.x * SIZE + 10, npc.y * SIZE + 10, 4, 4);
-                ctx.fillRect(npc.x * SIZE + 18, npc.y * SIZE + 10, 4, 4);
-            });
-
-            // Draw player
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x * SIZE + 2, player.y * SIZE + 2, SIZE-4, SIZE-4);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(player.x * SIZE + 8, player.y * SIZE + 8, 6, 6);
-            ctx.fillRect(player.x * SIZE + 18, player.y * SIZE + 8, 6, 6);
+            // Player
+            const px = P.x * T;
+            const py = P.y * T;
+            
+            // Body (red)
+            rect(px + 2, py + 2, 12, 12, '#f83838');
+            
+            // Eyes
+            rect(px + 4, py + 5, 3, 3, '#fff');
+            rect(px + 9, py + 5, 3, 3, '#fff');
+            rect(px + 5, py + 6, 1, 1, '#000');
+            rect(px + 10, py + 6, 1, 1, '#000');
+            
+            // Backpack
+            rect(px + 6, py + 10, 4, 3, '#333');
         }
 
-        let msgActive = false;
-
+        // Message
+        let msgShow = false;
         function showMsg(text) {
-            messageBox.textContent = text;
-            messageBox.classList.add('active');
-            msgActive = true;
+            msg.textContent = text;
+            msg.classList.add('show');
+            msgShow = true;
         }
 
         function hideMsg() {
-            messageBox.classList.remove('active');
-            msgActive = false;
+            msg.classList.remove('show');
+            msgShow = false;
         }
 
+        // Interaction
         function interact() {
-            if(msgActive) {
+            if(msgShow) {
                 hideMsg();
                 return;
             }
 
-            // Check items
-            const item = items.find(i => i.x === player.x && i.y === player.y && !i.found);
-            if(item) {
-                item.found = true;
-                player.items++;
-                itemCountEl.textContent = player.items;
-                showMsg(item.msg);
+            // Check item
+            const it = ITEMS.find(i => i.x === P.x && i.y === P.y && !i.found);
+            if(it) {
+                it.found = true;
+                showMsg(it.msg);
                 draw();
                 return;
             }
 
-            // Check NPCs (adjacent)
+            // Check NPC (adjacent)
             const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
-            for(let dir of dirs) {
-                const npc = npcs.find(n => n.x === player.x + dir.x && n.y === player.y + dir.y);
+            for(let d of dirs) {
+                const npc = NPCS.find(n => n.x === P.x + d.x && n.y === P.y + d.y);
                 if(npc) {
                     showMsg(npc.msg);
                     return;
                 }
             }
 
-            // Check Pokémon
-            for(let dir of dirs) {
-                const poke = pokemon.find(p => p.x === player.x + dir.x && p.y === player.y + dir.y);
-                if(poke) {
-                    showMsg(`${poke.name} Ein wildes Pokémon! Es scheint friedlich zu sein.`);
-                    return;
-                }
-            }
-
-            // Check special buildings
-            if(player.y >= 2 && player.y <= 6 && player.x >= 17 && player.x <= 22) {
-                showMsg('💊 Pokémon Center: Deine Pokémon wurden geheilt!');
+            // Check buildings
+            if(P.y >= 3 && P.y <= 7 && P.x >= 17 && P.x <= 22) {
+                showMsg('💊 Pokémon Center: Deine Pokémon sind gesund!');
                 return;
             }
-            if(player.y >= 8 && player.y <= 11 && player.x >= 26 && player.x <= 29) {
-                showMsg('🛒 Poké Mart: Willkommen! Hier gibt es Pokébälle und Tränke!');
+            if(P.y >= 8 && P.y <= 11 && P.x >= 26 && P.x <= 29) {
+                showMsg('🛒 Poké Mart: Willkommen! Wir haben Pokébälle!');
                 return;
             }
 
-            showMsg('💬 Hier gibt es nichts zu untersuchen.');
+            showMsg('💬 Hier gibt es nichts.');
         }
 
-        let moving = false;
-
+        // Movement
         function move(dx, dy) {
-            if(moving || msgActive) return;
+            if(P.moving || msgShow) return;
 
-            const nx = player.x + dx;
-            const ny = player.y + dy;
+            const nx = P.x + dx;
+            const ny = P.y + dy;
 
-            if(nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
-            if(solid.includes(map[ny][nx])) {
-                showMsg('⛔ Du kannst dort nicht hingehen!');
-                return;
-            }
+            if(nx < 0 || nx >= W || ny < 0 || ny >= H) return;
+            if(SOLID.includes(M[ny][nx])) return;
+            if(NPCS.find(n => n.x === nx && n.y === ny)) return;
 
-            // Check NPC collision
-            if(npcs.find(n => n.x === nx && n.y === ny)) return;
-            if(pokemon.find(p => p.x === nx && p.y === ny)) return;
-
-            moving = true;
-            player.x = nx;
-            player.y = ny;
+            P.moving = true;
+            P.x = nx;
+            P.y = ny;
             draw();
 
-            setTimeout(() => moving = false, 150);
+            setTimeout(() => P.moving = false, 120);
         }
 
         // Controls
         document.addEventListener('keydown', e => {
-            if(msgActive && !['e','Enter',' '].includes(e.key)) {
-                hideMsg();
+            if(msgShow) {
+                if(['e','Enter',' '].includes(e.key)) {
+                    hideMsg();
+                }
                 return;
             }
 
@@ -497,21 +421,22 @@
             }
         });
 
-        document.querySelectorAll('.btn').forEach(btn => {
-            btn.addEventListener('touchstart', e => {
+        // Touch controls
+        document.querySelectorAll('.btn').forEach(b => {
+            b.addEventListener('touchstart', e => {
                 e.preventDefault();
-                const dir = btn.dataset.dir;
-                if(dir === 'up') move(0, -1);
-                else if(dir === 'down') move(0, 1);
-                else if(dir === 'left') move(-1, 0);
-                else if(dir === 'right') move(1, 0);
-                else if(btn.dataset.action === 'interact') interact();
+                const d = b.dataset.d;
+                if(d === 'u') move(0, -1);
+                else if(d === 'd') move(0, 1);
+                else if(d === 'l') move(-1, 0);
+                else if(d === 'r') move(1, 0);
+                else if(b.dataset.a) interact();
             }, {passive: false});
         });
 
-        // Initial draw
+        // Init
         draw();
-        showMsg('🎮 Willkommen in Herbstdorf! Erkunde die Stadt und finde alle 3 versteckten Items!');
+        setTimeout(() => showMsg('🎮 Willkommen in Herbstdorf! Erkunde die Stadt!'), 500);
     </script>
 </body>
 </html>
