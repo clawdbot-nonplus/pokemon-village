@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pokémon-like Village</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #2c3e50;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh;
+            font-family: 'Press Start 2P', cursive;
+            color: #ecf0f1;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        canvas { 
+            border: 4px solid #34495e;
+            background-color: #34495e;
+            image-rendering: pixelated; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 4/3;
+            margin-bottom: 15px;
+        }
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        #controls { 
+            display: flex; 
+            flex-direction: column; 
+            margin-top: 10px; 
+            background-color: #34495e;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 300px;
+        }
+        .row { 
+            display: flex; 
+            justify-content: center;
+        }
+        .dpad-button { 
+            width: 60px;
+            height: 60px; 
+            background-color: #2c3e50;
+            margin: 4px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 28px;
+            cursor: pointer; 
+            border-radius: 8px;
+            user-select: none; 
+            border: 2px solid #5d6d7e;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+            transition: background-color 0.1s ease;
+        }
+        .dpad-button:active { 
+            background-color: #5d6d7e;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .dpad-button.empty {
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            cursor: default;
+        }
+        #message-box { 
+            background-color: rgba(0,0,0,0.85); 
+            border: 3px solid #f1c40f;
+            padding: 15px; 
+            position: absolute; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 90%; 
+            max-width: 500px; 
+            min-height: 80px; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(241,196,15,0.4);
+            z-index: 100;
+        }
+        #message-box::after {
+            content: '▼';
+            position: absolute;
+            bottom: -20px;
+            color: #f1c40f;
+            font-size: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #message-box.active { display: flex; }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            body { 
+                flex-direction: row; 
+                justify-content: space-around; 
+                padding: 10px;
+                align-items: center;
+            }
+            #gameContainer {
+                margin-right: 20px;
+                margin-bottom: 0;
+            }
+            canvas {
+                width: auto;
+                height: 90vh;
+                max-width: 70vw;
+                max-height: 500px;
+            }
+            #controls {
+                margin-top: 0;
+                max-width: 200px;
+            }
+            .dpad-button {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls">
+            <div class="row">
+                <div class="dpad-button empty"></div>
+                <div class="dpad-button" data-direction="up">⬆</div>
+                <div class="dpad-button empty"></div>
+            </div>
+            <div class="row">
+                <div class="dpad-button" data-direction="left">⬅</div>
+                <div class="dpad-button" data-action="interact">A</div>
+                <div class="dpad-button" data-direction="right">➡</div>
+            </div>
+            <div class="row">
+                <div class="dpad-button empty"></div>
+                <div class="dpad-button" data-direction="down">⬇</div>
+                <div class="dpad-button empty"></div>
+            </div>
+        </div>
+    </div>
+    <div id="message-box"></div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const messageBox = document.getElementById('message-box');
+        const controls = document.getElementById('controls');
+
+        const TILE_SIZE = 16;
+        const SCALE = 2;
+        const DISPLAY_TILE_SIZE = TILE_SIZE * SCALE;
+
+        const MAP_COLS = 20;
+        const MAP_ROWS = 15;
+
+        canvas.width = MAP_COLS * DISPLAY_TILE_SIZE;
+        canvas.height = MAP_ROWS * DISPLAY_TILE_SIZE;
+
+        const player = {
+            x: 10, y: 7,
+            sprite: new Image()
+        };
+        player.sprite.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAmUlEQVQ4T2NgoBAwMjAwMDAwMDAwMAYAAwZGwFjIwMDAsGZqaiBDBt4BCCgR3gXEDgZgwMgwJkAGpMDEMEgwVBgMhgcFwxIGdqGgBg0GEgKCYZgKKJgYGBxGAwP/AVg0GEjGgsK8QgC8oKgYDAwMDAwMDBUGAwYGQ+nAgMDAwMDAYCAAuKDAwgAMnJ8rAXjK0FkgBgYA+o5C9h2N/r8AAAAASUVORK5CYII=';
+
+        const tiles = {
+            '0': new Image(), '1': new Image(), '2': new Image(), '3': new Image(),
+            '4': new Image(), '5': new Image(), '6': new Image(), '7': new Image(),
+            '8': new Image(), '9': new Image()
+        };
+
+        tiles['0'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKUlEQVQ4T2NkoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDBoMABbL+/a/z/U2AAAAAElFTkSuQmCC';
+        tiles['1'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQ0lEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwGwwGCYSEBGDQYSAgKBmEooGBgYBgWA3wBAwMDSQAAwFzGf9zWl6EAAAAASUVORK5CYII=';
+        tiles['2'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAANElEQVQ4T2NkoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZ+IGBQYAho2GgoGAgDJsAAJ4F/96GfOQAAAAASUVORK5CYII=';
+        tiles['3'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAPklEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgYBBoOBAXDAgZ2kMGAQSAoBhmA4oIBAABvQf7k9FkKAAAAAElFTkSuQmCC';
+        tiles['4'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMklEQVQ4T2NkoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgY/D2EAYgWAADoJf962Fm81AAAAABJRU5ErkJggg==';
+        tiles['5'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAARElEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgYBBoOBAXDAgZ2kMGAQSAoBhmA4oIBAf///wP/AUAAAC+F/wV3qJmFAAAAAElFTkSuQmCC';
+        tiles['6'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVQ4T2NkoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgYBBgOGiYEAQ0YjCUAwDEMxMDCwMDAYDAYAADk7//c4u1C/AAAAAElFTkSuCCgYAAAAAElFTkSuQmCC';
+        tiles['7'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQ0lEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgYBBoOBAXDAgZ2kMGAQSAoBhmA4oIBAABvQf7k9FkKAAAAAElFTkSuQmCC';
+        tiles['8'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAARElEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgYBBoOBAXDAgZ2kMGAQSAoBhmA4oIBAf///wP/AUAAAC+F/wV3qJmFAAAAAElFTkSuQmCC';
+        tiles['9'].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAW0lEQVQ4T2NgoBAwMjAwMDAwMDAwMBjAARgwMgwJkABpMDEMDKwZGBgY/D2EAYgWAwSAoBhmA4oIBAQAA2I8KGPgPGGQgZGBgYGDQYCAGBkPBYBgWA0NGAQAAg1kP9w+KqfAAAAAElFTkSuQmCC';
+
+        const gameMap = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,5,3,2,0,0,1,1,1,1,1,0,0,0,0,0,0,0,1],
+            [1,0,2,2,2,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,6,0,0,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        const collidableTiles = ['1', '2', '3', '4']; 
+
+        const interactiveElements = {
+            '3,2': { type: 'npc', message: 'Willkommen in Moltenville! Tritt ein und erkunde. Pass auf die Bäume auf!', interacted: false },
+            '15,5': { type: 'item', message: 'Du hast einen ✨Glitzerstein✨ gefunden! Wertvoll!', found: false },
+            '7,7': { type: 'event', message: 'Ein seltsamer Wind weht hier. Fühlst du dich beobachtet?', triggered: false }
+        };
+
+        let messageVisible = false;
+        let lastMessage = '';
+
+        function showMessage(text) {
+            if (messageVisible && lastMessage === text) {
+                hideMessage();
+                return;
+            }
+            messageBox.textContent = text;
+            messageBox.classList.add('active');
+            messageVisible = true;
+            lastMessage = text;
+        }
+
+        function hideMessage() {
+            messageBox.classList.remove('active');
+            messageVisible = false;
+            lastMessage = '';
+        }
+
+        function handleInteract() {
+            if (messageVisible) {
+                hideMessage();
+                return;
+            }
+
+            const directions = [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}];
+            
+            for (const dir of directions) {
+                const checkX = player.x + dir.dx;
+                const checkY = player.y + dir.dy;
+                const key = `${checkX},${checkY}`;
+
+                if (interactiveElements[key]) {
+                    const element = interactiveElements[key];
+                    if (element.type === 'npc') {
+                        showMessage(element.message);
+                        return;
+                    } else if (element.type === 'item' && !element.found) {
+                        element.found = true;
+                        gameMap[checkY][checkX] = '0'; 
+                        showMessage(element.message + ' (Der Glitzerstein ist nun verschwunden.)');
+                        return;
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < MAP_ROWS; y++) {
+                for (let x = 0; x < MAP_COLS; x++) {
+                    const tileId = gameMap[y][x];
+                    const tileImage = tiles[tileId];
+                    if (tileImage && tileImage.complete) {
+                        ctx.drawImage(tileImage, x * DISPLAY_TILE_SIZE, y * DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE);
+                    } else if (!tileImage) {
+                         ctx.fillStyle = tileId === '0' ? 'lightgreen' : 'grey';
+                         ctx.fillRect(x * DISPLAY_TILE_SIZE, y * DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE);
+                    }
+                }
+            }
+
+            if (player.sprite.complete) {
+                ctx.drawImage(player.sprite, player.x * DISPLAY_TILE_SIZE, player.y * DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE);
+            } else {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(player.x * DISPLAY_TILE_SIZE, player.y * DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE, DISPLAY_TILE_SIZE);
+            }
+        }
+
+        function update() {
+            const playerKey = `${player.x},${player.y}`;
+            if (interactiveElements[playerKey] && interactiveElements[playerKey].type === 'event' && !interactiveElements[playerKey].triggered) {
+                interactiveElements[playerKey].triggered = true;
+                showMessage(interactiveElements[playerKey].message);
+            }
+            draw();
+        }
+
+        let isMoving = false;
+        function movePlayer(dx, dy) {
+            if (isMoving || messageVisible) return;
+
+            const newX = player.x + dx;
+            const newY = player.y + dy;
+
+            if (newX < 0 || newX >= MAP_COLS || newY < 0 || newY >= MAP_ROWS) {
+                return;
+            }
+
+            const targetTile = gameMap[newY][newX];
+            if (collidableTiles.includes(targetTile)) {
+                showMessage('Du kannst nicht durch dieses Hindernis gehen!');
+                return;
+            }
+
+            isMoving = true;
+            player.x = newX;
+            player.y = newY;
+            update();
+
+            setTimeout(() => {
+                isMoving = false;
+            }, 150);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (messageVisible && e.key !== 'e' && e.key !== 'A' && e.key !== 'Enter') {
+                hideMessage();
+                return;
+            }
+
+            switch (e.key) {
+                case 'w':
+                case 'ArrowUp':
+                    movePlayer(0, -1);
+                    break;
+                case 's':
+                case 'ArrowDown':
+                    movePlayer(0, 1);
+                    break;
+                case 'a':
+                case 'ArrowLeft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'd':
+                case 'ArrowRight':
+                    movePlayer(1, 0);
+                    break;
+                case 'e':
+                case 'A':
+                case 'Enter':
+                    handleInteract();
+                    break;
+            }
+        });
+
+        controls.addEventListener('touchstart', (e) => {
+            const button = e.target.closest('.dpad-button');
+            if (!button) return;
+
+            e.preventDefault();
+
+            if (button.dataset.direction) {
+                const direction = button.dataset.direction;
+                switch (direction) {
+                    case 'up': movePlayer(0, -1); break;
+                    case 'down': movePlayer(0, 1); break;
+                    case 'left': movePlayer(-1, 0); break;
+                    case 'right': movePlayer(1, 0); break;
+                }
+            } else if (button.dataset.action === 'interact') {
+                handleInteract();
+            }
+        }, { passive: false });
+
+        let imagesLoaded = 0;
+        const totalImages = Object.keys(tiles).length + 1;
+
+        function imageLoadHandler() {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+                draw();
+            }
+        }
+
+        player.sprite.onload = imageLoadHandler;
+        for (const key in tiles) {
+            if (tiles.hasOwnProperty(key)) {
+                tiles[key].onload = imageLoadHandler;
+                tiles[key].onerror = imageLoadHandler; 
+            }
+        }
+
+        if (player.sprite.complete && Object.values(tiles).every(img => img.complete)) {
+            draw();
+        } else {
+            imagesLoaded = 0;
+            if (player.sprite.complete) imagesLoaded++;
+            for (const key in tiles) {
+                if (tiles.hasOwnProperty(key) && tiles[key].complete) {
+                    imagesLoaded++;
+                }
+            }
+            if (imagesLoaded === totalImages) {
+                draw();
+            }
+        }
+    </script>
+</body>
+</html>
